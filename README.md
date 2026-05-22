@@ -16,6 +16,7 @@ This project is an Arduino UNO based smart door lock system that uses an R307 op
 - Servo Motor
 - Jumper Wires
 - Power Supply
+- LCD Display
 
 ## Working Principle
 The fingerprint sensor captures and verifies the user's fingerprint. If the fingerprint matches the stored data, Arduino sends a signal to the servo motor to rotate and unlock the door. After a delay, the servo motor returns to the lock position.
@@ -24,6 +25,7 @@ The fingerprint sensor captures and verifies the user's fingerprint. If the fing
 - Arduino IDE
 - Embedded C
 - UART Communication
+- I2C communication
 
 ## Applications
 - Smart Door Locks
