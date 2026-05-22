@@ -1,0 +1,208 @@
+/*
+========================================================
+ SMART BIOMETRIC DOOR LOCK SYSTEM
+========================================================
+
+Components:
+- Arduino UNO
+- AS608 / R307 Fingerprint Sensor
+- SG90 Servo Motor
+- 16x2 I2C LCD
+- Buzzer
+
+Working:
+1. User places finger on sensor
+2. Fingerprint is verified
+3. If matched:
+      - Servo unlocks door
+      - LCD shows "Access Granted"
+      - Buzzer beeps
+4. After delay:
+      - Door locks again
+
+========================================================
+*/
+
+// ---------------- LIBRARIES ----------------
+
+#include <Adafruit_Fingerprint.h>
+#include <Servo.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include <SoftwareSerial.h>
+
+// ---------------- LCD SETUP ----------------
+
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+// ---------------- FINGERPRINT SENSOR ----------------
+
+// RX, TX
+SoftwareSerial mySerial(2, 3);
+
+Adafruit_Fingerprint finger = Adafruit_Fingerprint(&mySerial);
+
+// ---------------- SERVO ----------------
+
+Servo doorServo;
+
+// ---------------- PINS ----------------
+
+#define SERVO_PIN 9
+#define BUZZER_PIN 8
+
+// ---------------- VARIABLES ----------------
+
+int servoLockPos = 0;
+int servoUnlockPos = 90;
+
+// ========================================================
+// SETUP
+// ========================================================
+
+void setup()
+{
+  Serial.begin(9600);
+
+  // LCD Start
+  lcd.init();
+  lcd.backlight();
+
+  lcd.setCursor(0, 0);
+  lcd.print("Smart Door Lock");
+
+  // Servo Setup
+  doorServo.attach(SERVO_PIN);
+  doorServo.write(servoLockPos);
+
+  // Buzzer
+  pinMode(BUZZER_PIN, OUTPUT);
+
+  // Fingerprint Sensor
+  finger.begin(57600);
+
+  if (finger.verifyPassword())
+  {
+    lcd.setCursor(0, 1);
+    lcd.print("Sensor Ready");
+  }
+  else
+  {
+    lcd.setCursor(0, 1);
+    lcd.print("Sensor Error");
+    while (1);
+  }
+
+  delay(2000);
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Place Finger");
+}
+
+// ========================================================
+// LOOP
+// ========================================================
+
+void loop()
+{
+  int fingerprintID = getFingerprintID();
+
+  if (fingerprintID != -1)
+  {
+    accessGranted();
+  }
+
+  delay(50);
+}
+
+// ========================================================
+// FINGERPRINT FUNCTION
+// ========================================================
+
+int getFingerprintID()
+{
+  uint8_t p = finger.getImage();
+
+  if (p != FINGERPRINT_OK)
+  {
+    return -1;
+  }
+
+  p = finger.image2Tz();
+
+  if (p != FINGERPRINT_OK)
+  {
+    return -1;
+  }
+
+  p = finger.fingerFastSearch();
+
+  if (p != FINGERPRINT_OK)
+  {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Access Denied");
+
+    digitalWrite(BUZZER_PIN, HIGH);
+    delay(1000);
+    digitalWrite(BUZZER_PIN, LOW);
+
+    delay(1500);
+
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Place Finger");
+
+    return -1;
+  }
+
+  // Match Found
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Finger Matched");
+
+  lcd.setCursor(0, 1);
+  lcd.print("ID:");
+  lcd.print(finger.fingerID);
+
+  return finger.fingerID;
+}
+
+// ========================================================
+// ACCESS GRANTED FUNCTION
+// ========================================================
+
+void accessGranted()
+{
+  lcd.clear();
+
+  lcd.setCursor(0, 0);
+  lcd.print("Access Granted");
+
+  // Buzzer Beep
+  digitalWrite(BUZZER_PIN, HIGH);
+  delay(200);
+  digitalWrite(BUZZER_PIN, LOW);
+
+  // Unlock Door
+  doorServo.write(servoUnlockPos);
+
+  lcd.setCursor(0, 1);
+  lcd.print("Door Unlocked");
+
+  delay(5000);
+
+  // Lock Door Again
+  doorServo.write(servoLockPos);
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Door Locked");
+
+  delay(2000);
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Place Finger");
+}
